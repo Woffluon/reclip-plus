@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReClip Plus — Modern Self-Hosted Media Downloader</title>
+  <meta name="description" content="Fast, lightweight, safe self-hosted video and audio downloader powered by yt-dlp and ffmpeg.">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <div class="page">
+    <header class="header-bar">
+      <div class="brand">
+        <h1>Re<em>Clip</em> <span style="font-size: 2.2rem; font-style: normal; color: var(--accent); vertical-align: top;">+</span></h1>
+        <p class="brand-tagline">Self-Hosted Media Downloader</p>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="themeBtn" aria-label="Toggle theme">🌓 Auto</button>
+        <button class="icon-btn" id="notifyBtn" aria-label="Toggle notifications">🔕 Alerts Off</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- URL Input Section -->
+      <section class="input-section" aria-label="Media URL input">
+        <div class="textarea-wrap">
+          <textarea
+            id="urls"
+            placeholder="Paste one or more URLs (YouTube, TikTok, Instagram, Twitter/X, SoundCloud...)"
+            rows="2"
+            spellcheck="false"
+          ></textarea>
+          <button class="paste-icon-btn" id="pasteBtn" title="Paste from clipboard">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+            Paste
+          </button>
+        </div>
+        <div class="input-meta-bar">
+          <span class="url-stats" id="urlStats"></span>
+          <span class="url-hint">Separate multiple links with spaces or newlines</span>
+        </div>
+      </section>
+
+      <!-- Quick Presets -->
+      <div class="presets-bar" id="presetsBar" aria-label="Download presets">
+        <button class="preset-chip active" data-preset="best-video">★ Best Quality</button>
+        <button class="preset-chip" data-preset="1080p">1080p MP4</button>
+        <button class="preset-chip" data-preset="720p">720p Mobile</button>
+        <button class="preset-chip" data-preset="audio-orig">⚡ Original Audio</button>
+        <button class="preset-chip" data-preset="mp3-320">320k MP3</button>
+        <button class="preset-chip" data-preset="fastest">🚀 Fastest (Direct)</button>
+        <button class="preset-chip custom-add-chip" id="addPresetBtn" title="Save current settings as a custom preset">+ Custom</button>
+      </div>
+
+      <!-- Controls & Strategy Card -->
+      <section class="controls-card" aria-label="Format and quality controls">
+        <!-- Main format selector -->
+        <div class="format-tabs" role="tablist">
+          <button class="format-tab-btn active" data-format="video" role="tab" aria-selected="true">Video (MP4)</button>
+          <button class="format-tab-btn" data-format="audio" role="tab" aria-selected="false">Audio (MP3 / Stream)</button>
+        </div>
+
+        <!-- Video Strategy -->
+        <div class="strategy-row" id="videoStrategyRow">
+          <span class="strategy-label">Strategy:</span>
+          <button class="strat-btn active" data-quality="best">Best Quality</button>
+          <button class="strat-btn" data-quality="balanced">Balanced (H.264/AAC)</button>
+          <button class="strat-btn" data-quality="fastest">Fastest (No Merge)</button>
+        </div>
+
+        <!-- Audio Strategy -->
+        <div class="strategy-row" id="audioStrategyRow" style="display: none;">
+          <span class="strategy-label">Audio Quality:</span>
+          <button class="strat-btn active" data-quality="original">Original (Fastest)</button>
+          <button class="strat-btn" data-quality="320">320 kbps</button>
+          <button class="strat-btn" data-quality="256">256 kbps</button>
+          <button class="strat-btn" data-quality="192">192 kbps</button>
+          <button class="strat-btn" data-quality="128">128 kbps</button>
+        </div>
+
+        <!-- Collapsible Advanced Options -->
+        <button class="advanced-toggle" id="advToggle" type="button" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+          Advanced Options
+        </button>
+
+        <div class="advanced-panel" id="advPanel">
+          <!-- Time range section -->
+          <div class="adv-row">
+            <div class="adv-item">
+              <label for="advStartTime">Clip Start:</label>
+              <input type="text" id="advStartTime" placeholder="00:00:00">
+            </div>
+            <div class="adv-item">
+              <label for="advEndTime">End:</label>
+              <input type="text" id="advEndTime" placeholder="00:01:30">
+            </div>
+          </div>
+
+          <!-- Subtitles & Filename Strategy -->
+          <div class="adv-row">
+            <div class="adv-item">
+              <label for="advSubLang">Subtitles:</label>
+              <input type="text" id="advSubLang" placeholder="en, es..." style="width: 80px;">
+            </div>
+            <label class="adv-item adv-checkbox-label">
+              <input type="checkbox" id="advEmbedSubs">
+              Embed Subs
+            </label>
+            <label class="adv-item adv-checkbox-label">
+              <input type="checkbox" id="advAutoSubs">
+              Include Auto-Subs
+            </label>
+          </div>
+
+          <div class="adv-row">
+            <div class="adv-item">
+              <label for="advFilenameStrategy">Filename:</label>
+              <select id="advFilenameStrategy">
+                <option value="title">Title Only</option>
+                <option value="channel_title">Channel - Title</option>
+                <option value="title_res">Title [Resolution]</option>
+                <option value="title_id">Title [ID]</option>
+                <option value="original">Original Filename</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Metadata & Chapters Checkboxes -->
+          <div class="adv-row">
+            <label class="adv-item adv-checkbox-label">
+              <input type="checkbox" id="advEmbedMeta" checked>
+              Embed Metadata
+            </label>
+            <label class="adv-item adv-checkbox-label">
+              <input type="checkbox" id="advEmbedThumb" checked>
+              Embed Thumbnail
+            </label>
+            <label class="adv-item adv-checkbox-label">
+              <input type="checkbox" id="advEmbedChapters">
+              Embed Chapters
+            </label>
+          </div>
+
+          <!-- Advanced actions: Copy CLI command & Save Site Default -->
+          <div class="adv-actions-row">
+            <button class="copy-cmd-btn" id="copyCmdBtn" type="button">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+              Copy yt-dlp CLI command
+            </button>
+            <button class="site-default-btn" id="saveSiteDefaultBtn" type="button">
+              💾 Save as Site Default
+            </button>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+          <button class="fetch-btn" id="fetchBtn" type="button">Fetch Info</button>
+          <button class="clear-btn" id="clearBtn" type="button">Clear</button>
+        </div>
+      </section>
+
+      <!-- Live Queue Status Bar -->
+      <div class="queue-status-bar" id="queueStatusBar" style="display: none;" aria-live="polite">
+        <div class="queue-info">
+          <span class="queue-pulse"></span>
+          <span id="queueActiveText">0 active downloads</span>
+          <span class="queue-sep">&middot;</span>
+          <span id="queueWaitingText">0 in queue</span>
+        </div>
+      </div>
+
+      <!-- Cards Container -->
+      <section class="cards" id="cards" aria-live="polite" aria-label="Media cards"></section>
+
+      <!-- Local History Section -->
+      <section class="history-section" id="historySection">
+        <div class="history-header">
+          <h2 class="history-title">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Recent History
+          </h2>
+          <button class="btn-sm btn-outline" id="clearHistoryBtn">Clear</button>
+        </div>
+        <div class="history-items" id="historyItems"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>YouTube &middot; TikTok &middot; Instagram &middot; Twitter/X &middot; Reddit &middot; Facebook &middot; SoundCloud &middot; Vimeo &middot; 1000+ more</p>
+      <p style="margin-top: 6px;">
+        Forked from <a href="https://github.com/averygan/reclip" target="_blank" rel="noopener">averygan/reclip</a> &middot; Released under the <a href="https://github.com/Woffluon/reclip-plus/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+      </p>
+    </footer>
+  </div>
+
+  <div class="toast-container" id="toastContainer" aria-live="assertive"></div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

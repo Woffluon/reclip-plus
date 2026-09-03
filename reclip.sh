@@ -2,7 +2,6 @@
 set -e
 cd "$(dirname "$0")"
 
-# Check prerequisites
 missing=""
 
 if ! command -v python3 &> /dev/null; then
@@ -18,7 +17,7 @@ if ! command -v ffmpeg &> /dev/null; then
 fi
 
 if [ -n "$missing" ]; then
-    echo "Missing required tools:$missing"
+    echo "Missing required system tools:$missing"
     echo ""
     if command -v brew &> /dev/null; then
         echo "Install with:  brew install$missing"
@@ -30,27 +29,28 @@ if [ -n "$missing" ]; then
     exit 1
 fi
 
-# Set up venv and install Python deps
+# Set up venv and install dependencies
 if [ ! -d "venv" ]; then
     echo "Setting up virtual environment..."
     python3 -m venv venv
     source venv/bin/activate
-    pip install -q flask yt-dlp
+    pip install -q -r requirements.txt
 else
     source venv/bin/activate
 fi
 
-# Keep yt-dlp fresh — sites (Instagram, Facebook, etc.) break its extractors
-# frequently, and the usual fix is simply updating yt-dlp. Skip with RECLIP_NO_UPDATE=1.
-if [ -z "$RECLIP_NO_UPDATE" ]; then
-    echo "Updating yt-dlp..."
-    pip install -q -U yt-dlp || echo "  (couldn't update yt-dlp — continuing with the installed version)"
+# Optional update on startup
+if [ "$RECLIP_UPDATE_ON_STARTUP" = "1" ] || [ "$RECLIP_UPDATE_ON_STARTUP" = "true" ]; then
+    if [ -z "$RECLIP_NO_UPDATE" ]; then
+        echo "Checking for yt-dlp updates..."
+        pip install -q -U yt-dlp || echo "  (could not update yt-dlp — continuing with installed version)"
+    fi
 fi
 
 PORT="${PORT:-8899}"
 export PORT
 
 echo ""
-echo "  ReClip is running at http://localhost:$PORT"
+echo "  ReClip Plus is running at http://localhost:$PORT"
 echo ""
 python3 app.py

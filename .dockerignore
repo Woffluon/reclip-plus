@@ -4,6 +4,14 @@ downloads
 __pycache__
 *.pyc
 *.pyo
+*.pyi
+.pytest_cache
+.ruff_cache
+tests
+assets
+reclip.bat
+reclip.sh
+CONTRIBUTING.md
 README.md
 LICENSE
 docker-compose.yml
@@ -13,3 +21,5 @@ Dockerfile
 .env.*
 .vscode
 .idea
+venv
+

@@ -1,13 +1,28 @@
 services:
   reclip:
     build: .
-    image: reclip:latest
-    container_name: reclip
+    image: reclip-plus:latest
+    container_name: reclip-plus
     ports:
       - "8899:8899"
     volumes:
       - reclip-downloads:/app/downloads
+    environment:
+      - PORT=8899
+      - MAX_CONCURRENT_DOWNLOADS=2
+      - MAX_PLAYLIST_ITEMS=50
+      - YTDLP_CONCURRENT_FRAGMENTS=4
+      - DOWNLOAD_TTL=3600
+      - MIN_FREE_DISK_SPACE_MB=500
+      - RECLIP_UPDATE_ON_STARTUP=0
+      - ENABLE_SSRF_PROTECTION=true
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8899/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   reclip-downloads:
