@@ -137,6 +137,45 @@ class TestAppRoutes:
         res = client.get("/api/file/0123456789")
         assert res.status_code == 404
 
+    def test_file_download_success_with_unicode_name(self, client, tmp_path):
+        from reclip.jobs import Job, job_manager
+
+        job_id = "abcdef1234"
+        test_file = tmp_path / f"{job_id}.mp4"
+        test_file.write_bytes(b"dummy video content")
+
+        job = Job(job_id=job_id, url="https://example.com/test", title="KARŞINDA TAHM KENCH VAR")
+        job.status = "done"
+        job.file_path = str(test_file)
+        job.filename = "KARŞINDA TAHM KENCH VAR.mp4"
+        job_manager.jobs[job_id] = job
+
+        with patch("reclip.app.DOWNLOAD_DIR", str(tmp_path)):
+            res = client.get(f"/api/file/{job_id}")
+            assert res.status_code == 200
+            assert res.data == b"dummy video content"
+            cd = res.headers.get("Content-Disposition", "")
+            assert "attachment" in cd
+            assert "KAR%C5%9EINDA" in cd or "KARSINDA" in cd
+
+    def test_file_download_disk_fallback_without_job_in_memory(self, client, tmp_path):
+        from reclip.jobs import job_manager
+
+        job_id = "fedcba4321"
+        # Ensure job is not in job_manager (simulating server restart or multi-worker displacement)
+        job_manager.jobs.pop(job_id, None)
+
+        test_file = tmp_path / f"{job_id}.mp4"
+        test_file.write_bytes(b"recovered video content")
+
+        with patch("reclip.app.DOWNLOAD_DIR", str(tmp_path)):
+            # Client passes original filename in query parameter
+            res = client.get(f"/api/file/{job_id}?name=KAR%C5%9EINDA%20TAHM%20KENCH%20VAR.mp4")
+            assert res.status_code == 200
+            assert res.data == b"recovered video content"
+            cd = res.headers.get("Content-Disposition", "")
+            assert "KAR%C5%9EINDA" in cd or "KARSINDA" in cd
+
     @patch("reclip.jobs.is_safe_url", return_value=(True, ""))
     @patch("reclip.jobs.check_disk_space", return_value=(True, ""))
     @patch.object(job_manager, "_process_queue")

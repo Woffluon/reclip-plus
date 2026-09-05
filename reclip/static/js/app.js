@@ -812,7 +812,7 @@
       const bar = document.createElement('div');
       bar.id = 'dlAllBar';
       bar.className = 'dl-all-bar';
-      bar.innerHTML = `<button class="dl-all-btn" id="dlAllBtn" onclick="window.downloadAllReady()">${ICONS.download} <span>Download All (${readyCards.length})</span></button>`;
+      bar.innerHTML = `<button class="dl-all-btn" id="dlAllBtn" onclick="window.downloadAllCards()">${ICONS.download} <span>Download All (${readyCards.length})</span></button>`;
       elCards.appendChild(bar);
     }
   }
@@ -1083,15 +1083,16 @@
   window.saveJobFile = (idx) => {
     const c = state.cards[idx];
     if (!c || !c.jobId) return;
+    const dlName = c.filename || 'download';
     const a = document.createElement('a');
-    a.href = `/api/file/${c.jobId}`;
-    a.download = c.filename || 'download';
+    a.href = `/api/file/${c.jobId}?name=${encodeURIComponent(dlName)}`;
+    a.download = dlName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  window.downloadAllReady = async () => {
+  window.downloadAllCards = async () => {
     const btn = document.getElementById('dlAllBtn');
     if (btn) {
       btn.disabled = true;

@@ -1,3 +1,4 @@
+import glob
 import os
 import platform
 import queue
@@ -26,6 +27,7 @@ from reclip.utils import (
     friendly_error_message,
     is_safe_url,
     metadata_cache,
+    sanitize_filename,
 )
 
 package_dir = os.path.abspath(os.path.dirname(__file__))
@@ -35,6 +37,23 @@ app = Flask(
     static_folder=os.path.join(package_dir, "static"),
 )
 app.config["JSON_AS_ASCII"] = False
+app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+
+@app.after_request
+def add_no_cache_headers(response: Response) -> Response:
+    """Ensure HTML and frontend assets are never cached stale by browsers."""
+    if response.mimetype in (
+        "text/html",
+        "text/javascript",
+        "text/css",
+        "application/javascript",
+    ):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # Periodic background cleaner
 _last_cleanup_time = 0.0
@@ -391,15 +410,29 @@ def download_file(job_id: str):
         return jsonify({"error": "Invalid job ID."}), 400
 
     job = job_manager.get_job(job_id)
-    if not job or job.status != "done" or not job.file_path:
-        return jsonify({"error": "File is not ready or job does not exist."}), 404
+    real_file_path: str | None = None
+    download_name: str | None = None
+
+    if job and job.status == "done" and job.file_path:
+        real_file_path = os.path.normcase(os.path.realpath(job.file_path))
+        download_name = job.filename
+    else:
+        # Resilient disk fallback: recover file from disk if server was restarted or job displaced
+        candidates = glob.glob(os.path.join(DOWNLOAD_DIR, f"{job_id}.*"))
+        valid_files = [
+            f
+            for f in candidates
+            if not f.endswith((".part", ".ytdl", ".temp", ".json", ".info.json"))
+        ]
+        if valid_files:
+            real_file_path = os.path.normcase(os.path.realpath(valid_files[0]))
+            download_name = os.path.basename(real_file_path)
+
+    if not real_file_path or not os.path.isfile(real_file_path):
+        return jsonify({"error": "File not found on server disk or job does not exist."}), 404
 
     # Security check: verify path is strictly inside DOWNLOAD_DIR
-    real_file_path = os.path.normcase(os.path.realpath(job.file_path))
     real_dl_dir = os.path.normcase(os.path.realpath(DOWNLOAD_DIR))
-    if not os.path.isfile(real_file_path):
-        return jsonify({"error": "File not found on server disk."}), 404
-
     try:
         common = os.path.commonpath([real_dl_dir, real_file_path])
         if common != real_dl_dir:
@@ -407,7 +440,15 @@ def download_file(job_id: str):
     except ValueError:
         return jsonify({"error": "Access denied."}), 403
 
-    download_name = job.filename or os.path.basename(real_file_path)
+    # Support client-supplied filename override (?name=...) with sanitization
+    client_name = request.args.get("name", "").strip()
+    if client_name:
+        ext = os.path.splitext(real_file_path)[1]
+        download_name = sanitize_filename(
+            client_name if client_name.endswith(ext) else f"{client_name}{ext}"
+        )
+
+    download_name = download_name or os.path.basename(real_file_path)
 
     response = send_file(
         real_file_path,
@@ -425,6 +466,7 @@ def download_file(job_id: str):
                     os.remove(real_file_path)
             except OSError:
                 pass
+
         response.call_on_close(on_stream_finished)
 
     return response

@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/framework-Flask-lightgrey.svg)](https://flask.palletsprojects.com/)
-[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![Docker](https://img.shields.io/badge/docker-supported-blue.svg)](https://www.docker.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 A high-performance, lightweight, and modern self-hosted media downloader. Forked from [averygan/reclip](https://github.com/averygan/reclip), ReClip Plus expands upon the original minimalist philosophy by introducing real-time live download progress, in-memory concurrency queuing, partial video clipping, subtitle and chapter extraction, SSRF security guards, and progressive batch metadata processing — while maintaining zero external service dependencies (no Redis, no Celery, no database).
