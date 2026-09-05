@@ -45,6 +45,32 @@
   const elToastContainer = document.getElementById('toastContainer');
 
   // ==========================================
+  // Premium SVG Icons (Zero Emojis)
+  // ==========================================
+  const ICONS = {
+    moon: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+    sun: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    auto: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20z" fill="currentColor"/></svg>',
+    bell: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+    bellOff: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+    download: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    saveFile: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+    image: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+    list: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+    clock: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+    checkCircle: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    alertCircle: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    xCircle: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>',
+    chevronUp: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>',
+    chevronDown: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+    retry: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+    x: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    xSmall: '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+    subtitles: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="14" y1="12" x2="18" y2="12"/><line x1="6" y1="16" x2="14" y2="16"/></svg>',
+    historyEmpty: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  };
+
+  // ==========================================
   // Helper & Utility Functions
   // ==========================================
 
@@ -104,10 +130,10 @@
     localStorage.setItem('reclip_theme', theme);
     if (theme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
-      if (elThemeBtn) elThemeBtn.innerHTML = '🌙 Dark';
+      if (elThemeBtn) elThemeBtn.innerHTML = `<span class="btn-icon">${ICONS.moon}</span><span class="btn-text">Dark</span>`;
     } else if (theme === 'light') {
       document.documentElement.removeAttribute('data-theme');
-      if (elThemeBtn) elThemeBtn.innerHTML = '☀️ Light';
+      if (elThemeBtn) elThemeBtn.innerHTML = `<span class="btn-icon">${ICONS.sun}</span><span class="btn-text">Light</span>`;
     } else {
       // Auto
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -116,7 +142,7 @@
       } else {
         document.documentElement.removeAttribute('data-theme');
       }
-      if (elThemeBtn) elThemeBtn.innerHTML = '🌓 Auto';
+      if (elThemeBtn) elThemeBtn.innerHTML = `<span class="btn-icon">${ICONS.auto}</span><span class="btn-text">Auto</span>`;
     }
   }
 
@@ -149,7 +175,9 @@
 
   function updateNotifyBtn() {
     if (!elNotifyBtn) return;
-    elNotifyBtn.innerHTML = state.notifications ? '🔔 Alerts On' : '🔕 Alerts Off';
+    elNotifyBtn.innerHTML = state.notifications
+      ? `<span class="btn-icon">${ICONS.bell}</span><span class="btn-text">Alerts On</span>`
+      : `<span class="btn-icon">${ICONS.bellOff}</span><span class="btn-text">Alerts Off</span>`;
   }
 
   // ==========================================
@@ -243,7 +271,7 @@
     Object.entries(custom).forEach(([key, p]) => {
       const btn = document.createElement('button');
       btn.className = 'preset-chip custom-chip';
-      btn.innerHTML = `${esc(p.label)} <span class="chip-del" title="Delete preset" onclick="window.deleteCustomPreset('${esc(key)}', event)">&times;</span>`;
+      btn.innerHTML = `<span>${esc(p.label)}</span> <span class="chip-del" title="Delete preset" onclick="window.deleteCustomPreset('${esc(key)}', event)">${ICONS.xSmall}</span>`;
       btn.onclick = () => {
         state.format = p.format || 'video';
         if (p.videoQuality) state.videoQuality = p.videoQuality;
@@ -609,11 +637,25 @@
 
     let thumbHtml;
     if (isAudio) {
-      thumbHtml = `<div class="thumb-placeholder" style="color:var(--accent)"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg></div>`;
+      thumbHtml = `
+        <div class="thumb-placeholder" style="color:var(--accent)">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <span class="thumb-badge thumb-type">AUDIO</span>
+      `;
     } else if (c.thumbnail) {
-      thumbHtml = `<img src="${esc(c.thumbnail)}" alt="" loading="lazy" decoding="async">`;
+      thumbHtml = `
+        <img src="${esc(c.thumbnail)}" alt="" loading="lazy" decoding="async">
+        <span class="thumb-badge thumb-type">VIDEO</span>
+        ${c.duration ? `<span class="thumb-badge thumb-duration">${fmtDur(c.duration)}</span>` : ''}
+      `;
     } else {
-      thumbHtml = `<div class="thumb-placeholder"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`;
+      thumbHtml = `
+        <div class="thumb-placeholder">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="20" height="20" rx="2"/><circle cx="8" cy="8" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        </div>
+        <span class="thumb-badge thumb-type">VIDEO</span>
+      `;
     }
 
     // Format Chips on Ready Card
@@ -627,7 +669,7 @@
     // Direct Thumbnail Download Link
     let thumbBtn = '';
     if (c.thumbnail && c.status === 'ready') {
-      thumbBtn = `<a href="${esc(c.thumbnail)}" target="_blank" rel="noopener noreferrer" download class="btn-sm btn-outline" style="text-decoration:none;" title="Save thumbnail image directly">🖼️ Thumb</a>`;
+      thumbBtn = `<a href="${esc(c.thumbnail)}" target="_blank" rel="noopener noreferrer" download class="btn-sm btn-outline" style="text-decoration:none;" title="Save thumbnail image directly">${ICONS.image} <span>Thumb</span></a>`;
     }
 
     // Subtitles discovery & selection
@@ -635,14 +677,15 @@
     if (c.subtitles && c.subtitles.length > 0 && c.status === 'ready') {
       subSelectHtml = `
         <div class="card-details-row">
-          <span style="color:var(--muted)">Subtitles:</span>
+          <span class="detail-label">${ICONS.subtitles} Subtitles:</span>
           <select class="sub-select" onchange="window.pickCardSubtitle(${idx}, this.value)">
             <option value="">None</option>
             ${c.subtitles.map(s => `<option value="${esc(s.code)}" ${c.selectedSub === s.code ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
           </select>
           ${c.selectedSub ? `
-            <label style="display:inline-flex; align-items:center; gap:4px; font-size:0.68rem; color:var(--muted)">
-              <input type="checkbox" ${c.subOnly ? 'checked' : ''} onchange="window.toggleSubOnly(${idx}, this.checked)"> SRT File Only
+            <label class="detail-sub-check">
+              <input type="checkbox" ${c.subOnly ? 'checked' : ''} onchange="window.toggleSubOnly(${idx}, this.checked)">
+              <span>SRT File Only</span>
             </label>
           ` : ''}
         </div>
@@ -657,16 +700,18 @@
       chaptersHtml = `
         <div class="card-details-row">
           <button class="chapter-btn" type="button" onclick="window.toggleCardChapters(${idx})">
-            📑 Chapters (${chCount}) ${isOpen ? '▲' : '▼'}
+            ${ICONS.list}
+            <span>Chapters (${chCount})</span>
+            <span class="ch-chevron ${isOpen ? 'open' : ''}">${ICONS.chevronDown}</span>
           </button>
-          ${c.selectedChapter ? `<span style="color:var(--accent); font-size:0.68rem;">Selected: ${esc(c.selectedChapter.title)} (${esc(c.selectedChapter.start_str)}-${esc(c.selectedChapter.end_str)})</span>` : ''}
+          ${c.selectedChapter ? `<span class="selected-chapter-tag">${esc(c.selectedChapter.title)} (${esc(c.selectedChapter.start_str)} - ${esc(c.selectedChapter.end_str)})</span>` : ''}
         </div>
         ${isOpen ? `
           <div class="chapters-list">
             ${c.chapters.map((ch, chIdx) => `
-              <div class="chapter-item" onclick="window.pickCardChapter(${idx}, ${chIdx})">
-                <span>${chIdx + 1}. ${esc(ch.title)}</span>
-                <span style="color:var(--muted); font-size:0.65rem;">${esc(ch.start_str)} - ${esc(ch.end_str)}</span>
+              <div class="chapter-item ${c.selectedChapter === ch ? 'selected' : ''}" onclick="window.pickCardChapter(${idx}, ${chIdx})">
+                <span class="ch-title">${chIdx + 1}. ${esc(ch.title)}</span>
+                <span class="ch-time">${esc(ch.start_str)} - ${esc(ch.end_str)}</span>
               </div>
             `).join('')}
           </div>
@@ -680,16 +725,18 @@
 
     if (c.status === 'ready') {
       actionHtml = `
-        <button class="btn-sm btn-accent" onclick="window.startDownloadJob(${idx})">${c.subOnly ? 'Download Subtitles' : 'Download'}</button>
+        <button class="btn-sm btn-accent" onclick="window.startDownloadJob(${idx})">${ICONS.download} <span>${c.subOnly ? 'Download Subtitles' : 'Download'}</span></button>
         ${qualityChips}
         ${thumbBtn}
       `;
     } else if (c.status === 'queued') {
       actionHtml = `
-        <span class="card-status-text queued">🕒 In Queue</span>
-        <button class="reorder-btn" title="Move Up in Queue" onclick="window.reorderJob(${idx}, -1)">▲</button>
-        <button class="reorder-btn" title="Move Down in Queue" onclick="window.reorderJob(${idx}, 1)">▼</button>
-        <button class="btn-sm btn-outline" onclick="window.cancelJob(${idx})">Cancel</button>
+        <span class="card-status-text queued">${ICONS.clock} <span>In Queue</span></span>
+        <div class="queue-reorder-group">
+          <button class="reorder-btn" title="Move Up in Queue" onclick="window.reorderJob(${idx}, -1)">${ICONS.chevronUp}</button>
+          <button class="reorder-btn" title="Move Down in Queue" onclick="window.reorderJob(${idx}, 1)">${ICONS.chevronDown}</button>
+        </div>
+        <button class="btn-sm btn-outline" onclick="window.cancelJob(${idx})">${ICONS.x} <span>Cancel</span></button>
       `;
     } else if (c.status === 'downloading' || c.status === 'merging' || c.status === 'extracting_audio' || c.status === 'processing') {
       const p = c.progress || {};
@@ -713,9 +760,9 @@
 
       actionHtml = `
         <span class="card-status-text ${c.status}">
-          <span class="spin"></span> ${esc(p.status_msg || 'Downloading...')}
+          <span class="spin"></span> <span>${esc(p.status_msg || 'Downloading...')}</span>
         </span>
-        <button class="btn-sm btn-outline" onclick="window.cancelJob(${idx})">Cancel</button>
+        <button class="btn-sm btn-outline" onclick="window.cancelJob(${idx})">${ICONS.x} <span>Cancel</span></button>
       `;
     } else if (c.status === 'done') {
       progressHtml = `
@@ -726,18 +773,18 @@
         </div>
       `;
       actionHtml = `
-        <button class="btn-sm btn-success" onclick="window.saveJobFile(${idx})">Save File</button>
-        <span class="card-status-text done">✓ ${esc(c.filename || 'Finished')}</span>
+        <button class="btn-sm btn-success" onclick="window.saveJobFile(${idx})">${ICONS.saveFile} <span>Save File</span></button>
+        <span class="card-status-text done">${ICONS.checkCircle} <span>${esc(c.filename || 'Finished')}</span></span>
       `;
     } else if (c.status === 'error') {
       actionHtml = `
-        <button class="btn-sm btn-danger" onclick="window.retryJob(${idx})">Retry</button>
-        <span class="card-status-text error">✕ ${esc(c.error || 'Failed')}</span>
+        <button class="btn-sm btn-danger" onclick="window.retryJob(${idx})">${ICONS.retry} <span>Retry</span></button>
+        <span class="card-status-text error">${ICONS.alertCircle} <span>${esc(c.error || 'Failed')}</span></span>
       `;
     } else if (c.status === 'cancelled') {
       actionHtml = `
-        <button class="btn-sm btn-outline" onclick="window.retryJob(${idx})">Restart</button>
-        <span class="card-status-text" style="color:var(--muted)">Cancelled</span>
+        <button class="btn-sm btn-outline" onclick="window.retryJob(${idx})">${ICONS.retry} <span>Restart</span></button>
+        <span class="card-status-text muted">${ICONS.xCircle} <span>Cancelled</span></span>
       `;
     }
 
@@ -765,7 +812,7 @@
       const bar = document.createElement('div');
       bar.id = 'dlAllBar';
       bar.className = 'dl-all-bar';
-      bar.innerHTML = `<button class="dl-all-btn" id="dlAllBtn" onclick="window.downloadAllReady()">Download All (${readyCards.length})</button>`;
+      bar.innerHTML = `<button class="dl-all-btn" id="dlAllBtn" onclick="window.downloadAllReady()">${ICONS.download} <span>Download All (${readyCards.length})</span></button>`;
       elCards.appendChild(bar);
     }
   }
@@ -1101,17 +1148,29 @@
     if (!elHistoryContainer) return;
     const list = loadHistory();
     if (!list.length) {
-      elHistoryContainer.innerHTML = '<div style="font-size:0.75rem; color:var(--muted); padding:8px 0">No recent downloads.</div>';
+      elHistoryContainer.innerHTML = `
+        <div class="history-empty">
+          ${ICONS.historyEmpty}
+          <span>No recent downloads. Media you download will appear here.</span>
+        </div>
+      `;
       return;
     }
 
     elHistoryContainer.innerHTML = list.map((it, i) => `
       <div class="history-card">
         <div class="history-info">
-          <div class="history-name">${esc(it.title || it.filename || 'Media')}</div>
-          <div class="history-sub">${esc(it.format?.toUpperCase())} · ${new Date(it.date).toLocaleDateString()}</div>
+          <div class="history-name" title="${esc(it.title || it.filename || 'Media')}">${esc(it.title || it.filename || 'Media')}</div>
+          <div class="history-sub">
+            <span class="history-badge">${esc((it.format || 'video').toUpperCase())}</span>
+            <span class="history-sep">&middot;</span>
+            <span class="history-date">${new Date(it.date).toLocaleDateString()}</span>
+          </div>
         </div>
-        <button class="btn-sm btn-outline" onclick="window.redownloadUrl('${esc(it.url)}')">Re-download</button>
+        <button class="btn-sm btn-outline" onclick="window.redownloadUrl('${esc(it.url)}')">
+          ${ICONS.retry}
+          <span>Re-download</span>
+        </button>
       </div>
     `).join('');
   }
