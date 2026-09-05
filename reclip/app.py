@@ -293,14 +293,14 @@ def stream_job_events(job_id: str):
     import json
 
     def event_stream() -> Generator[str, None, None]:
-        # Send initial snapshot immediately
-        yield f"data: {json.dumps(job.to_dict())}\n\n"
-        if job.status in ("done", "error", "cancelled"):
-            return
-
         listener_q: queue.Queue = queue.Queue(maxsize=500)
         job.add_listener(listener_q)
         try:
+            # Send initial snapshot immediately
+            yield f"data: {json.dumps(job.to_dict())}\n\n"
+            if job.status in ("done", "error", "cancelled"):
+                return
+
             while True:
                 try:
                     data = listener_q.get(timeout=15)
@@ -308,6 +308,10 @@ def stream_job_events(job_id: str):
                     if data.get("status") in ("done", "error", "cancelled"):
                         break
                 except queue.Empty:
+                    # Check if job completed in the meantime
+                    if job.status in ("done", "error", "cancelled"):
+                        yield f"data: {json.dumps(job.to_dict())}\n\n"
+                        break
                     # Heartbeat comment to keep the SSE connection alive
                     yield ": keep-alive\n\n"
         finally:

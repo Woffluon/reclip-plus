@@ -6,6 +6,102 @@
 (() => {
   'use strict';
 
+  // ==========================================
+  // Industry-Standard Structured Logger
+  // ==========================================
+  const Logger = (() => {
+    const PREFIX = '[ReClip]';
+    const LEVELS = { DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3 };
+    const LOG_BUFFER_MAX = 300;
+    const buffer = [];
+
+    const getActiveLevel = () => {
+      try {
+        const stored = localStorage.getItem('reclip_log_level');
+        if (stored && LEVELS[stored.toUpperCase()] !== undefined) {
+          return LEVELS[stored.toUpperCase()];
+        }
+      } catch (e) {}
+      return LEVELS.DEBUG;
+    };
+
+    let activeLevel = getActiveLevel();
+
+    const STYLES = {
+      prefix: 'background: #dc2626; color: #ffffff; font-weight: 700; padding: 2px 5px; border-radius: 3px; font-size: 11px;',
+      ts: 'color: #94a3b8; font-family: monospace; font-size: 11px;',
+      DEBUG: 'color: #94a3b8; font-weight: 500;',
+      INFO: 'color: #38bdf8; font-weight: 600;',
+      WARN: 'color: #f59e0b; font-weight: 600;',
+      ERROR: 'color: #ef4444; font-weight: 700;',
+    };
+
+    function formatTime() {
+      const d = new Date();
+      return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
+    }
+
+    function emit(levelStr, msg, ...args) {
+      const numLevel = LEVELS[levelStr];
+      const timeStr = formatTime();
+      const rawMessage = typeof msg === 'string' ? msg : (msg && msg.message) ? msg.message : String(msg);
+      const entry = {
+        timestamp: new Date().toISOString(),
+        timeStr,
+        level: levelStr,
+        message: rawMessage,
+        args: args.length ? args : undefined,
+      };
+
+      buffer.push(entry);
+      if (buffer.length > LOG_BUFFER_MAX) {
+        buffer.shift();
+      }
+
+      if (numLevel < activeLevel) return;
+
+      const consoleMethod = levelStr === 'ERROR'
+        ? console.error
+        : levelStr === 'WARN'
+        ? console.warn
+        : levelStr === 'DEBUG'
+        ? (console.debug || console.log)
+        : (console.info || console.log);
+
+      const header = `%c${PREFIX}%c [${timeStr}] %c[${levelStr}]`;
+      const styles = [
+        STYLES.prefix,
+        STYLES.ts,
+        STYLES[levelStr] || '',
+      ];
+
+      consoleMethod(header, ...styles, msg, ...args);
+    }
+
+    return {
+      debug: (msg, ...args) => emit('DEBUG', msg, ...args),
+      info: (msg, ...args) => emit('INFO', msg, ...args),
+      warn: (msg, ...args) => emit('WARN', msg, ...args),
+      error: (msg, ...args) => emit('ERROR', msg, ...args),
+      setLevel: (lvl) => {
+        const upper = (lvl || '').toUpperCase();
+        if (LEVELS[upper] !== undefined) {
+          activeLevel = LEVELS[upper];
+          try {
+            localStorage.setItem('reclip_log_level', upper);
+          } catch (e) {}
+          emit('INFO', `Log level changed to: ${upper}`);
+        }
+      },
+      getLevel: () => Object.keys(LEVELS).find(k => LEVELS[k] === activeLevel) || 'DEBUG',
+      getBuffer: () => [...buffer],
+      clearBuffer: () => { buffer.length = 0; },
+    };
+  })();
+
+  // Expose on window for Playwright tests, devtools debugging, and automated monitoring
+  window.ReClipLogger = Logger;
+
   // Application State
   const state = {
     format: 'video', // 'video' | 'audio'
@@ -123,11 +219,13 @@
 
   function initTheme() {
     const saved = localStorage.getItem('reclip_theme') || 'auto';
+    Logger.debug(`Initializing theme preference: "${saved}"`);
     applyTheme(saved);
   }
 
   function applyTheme(theme) {
     localStorage.setItem('reclip_theme', theme);
+    Logger.info(`Applying theme: "${theme}"`);
     if (theme === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
       if (elThemeBtn) elThemeBtn.innerHTML = `<span class="btn-icon">${ICONS.moon}</span><span class="btn-text">Dark</span>`;
@@ -149,26 +247,33 @@
   function toggleTheme() {
     const current = localStorage.getItem('reclip_theme') || 'auto';
     const next = current === 'auto' ? 'dark' : current === 'dark' ? 'light' : 'auto';
+    Logger.info(`User toggled theme: "${current}" -> "${next}"`);
     applyTheme(next);
   }
 
   async function toggleNotifications() {
+    Logger.info(`User clicked notification toggle button (current: ${state.notifications})`);
     if (!('Notification' in window)) {
+      Logger.warn('Browser Notification API is not supported in this environment.');
       showToast('Notifications are not supported in this browser.');
       return;
     }
     if (Notification.permission === 'granted') {
       state.notifications = !state.notifications;
+      Logger.info(`Notifications toggled: ${state.notifications ? 'enabled' : 'disabled'}`);
       showToast(state.notifications ? 'Notifications enabled.' : 'Notifications disabled.');
       updateNotifyBtn();
     } else if (Notification.permission !== 'denied') {
+      Logger.info('Requesting browser notification permission...');
       const perm = await Notification.requestPermission();
+      Logger.info(`Notification permission response: "${perm}"`);
       if (perm === 'granted') {
         state.notifications = true;
         showToast('Notifications enabled!');
         updateNotifyBtn();
       }
     } else {
+      Logger.warn('Notification permission is denied in browser settings.');
       showToast('Notifications blocked in browser settings.');
     }
   }
@@ -218,16 +323,23 @@
     const invalidCount = totalTokens - (count + duplicates);
     const invStr = invalidCount > 0 ? ` · ${invalidCount} non-URL item${invalidCount > 1 ? 's' : ''} ignored` : '';
     elUrlStats.textContent = `${count} URL${count === 1 ? '' : 's'} detected${dupStr}${invStr}`;
+    Logger.debug(`URL input analyzed: ${count} valid URL(s), ${duplicates} duplicate(s), ${invalidCount} ignored`);
   }
 
   async function handlePaste() {
+    Logger.info('User clicked Paste from clipboard button');
     try {
       if (!navigator.clipboard || !navigator.clipboard.readText) {
+        Logger.warn('Clipboard API not available or readText not supported.');
         showToast('Clipboard access not allowed.');
         return;
       }
       const text = await navigator.clipboard.readText();
-      if (!text) return;
+      if (!text) {
+        Logger.debug('Clipboard was empty.');
+        return;
+      }
+      Logger.info(`Read ${text.length} character(s) from clipboard.`);
       if (elUrls.value.trim()) {
         elUrls.value = elUrls.value.trim() + '\n' + text.trim();
       } else {
@@ -236,6 +348,7 @@
       updateUrlStats();
       showToast('Pasted from clipboard.');
     } catch (e) {
+      Logger.warn('Clipboard read permission denied or failed:', e);
       showToast('Please paste manually using Ctrl+V / Cmd+V.');
     }
   }
@@ -267,12 +380,15 @@
     if (!bar) return;
     document.querySelectorAll('.custom-chip').forEach(el => el.remove());
     const custom = getCustomPresets();
+    const count = Object.keys(custom).length;
+    Logger.debug(`Rendering custom presets (total: ${count})`);
     const addBtn = document.getElementById('addPresetBtn');
     Object.entries(custom).forEach(([key, p]) => {
       const btn = document.createElement('button');
       btn.className = 'preset-chip custom-chip';
       btn.innerHTML = `<span>${esc(p.label)}</span> <span class="chip-del" title="Delete preset" onclick="window.deleteCustomPreset('${esc(key)}', event)">${ICONS.xSmall}</span>`;
       btn.onclick = () => {
+        Logger.info(`Custom preset "${p.label}" selected:`, p);
         state.format = p.format || 'video';
         if (p.videoQuality) state.videoQuality = p.videoQuality;
         if (p.audioQuality) state.audioQuality = p.audioQuality;
@@ -291,19 +407,23 @@
 
   window.deleteCustomPreset = (name, evt) => {
     if (evt) evt.stopPropagation();
+    Logger.info(`Deleting custom preset: "${name}"`);
     const custom = getCustomPresets();
     delete custom[name];
     try {
       localStorage.setItem('reclip_custom_presets', JSON.stringify(custom));
       renderCustomPresets();
       showToast(`Removed preset "${name}"`);
-    } catch (e) {}
+    } catch (e) {
+      Logger.error(`Failed to delete custom preset "${name}":`, e);
+    }
   };
 
   function saveNewCustomPreset() {
     const name = prompt('Enter a name for this custom preset:');
     if (!name || !name.trim()) return;
     const cleanName = name.trim();
+    Logger.info(`Saving new custom preset: "${cleanName}"`);
     const custom = getCustomPresets();
     custom[cleanName] = {
       label: cleanName,
@@ -315,7 +435,9 @@
       localStorage.setItem('reclip_custom_presets', JSON.stringify(custom));
       renderCustomPresets();
       showToast(`Saved preset "${cleanName}"`);
+      Logger.info(`Successfully saved custom preset "${cleanName}":`, custom[cleanName]);
     } catch (e) {
+      Logger.error(`Failed saving custom preset "${cleanName}":`, e);
       showToast('Could not save preset.');
     }
   }
@@ -333,6 +455,7 @@
     const { urls } = parseUrls(elUrls ? elUrls.value : '');
     const targetUrl = urls[0] || '';
     if (!targetUrl) {
+      Logger.warn('Cannot save site default: No URL in input.');
       showToast('Enter a URL first to remember defaults for that site.');
       return;
     }
@@ -346,8 +469,10 @@
         audioQuality: state.audioQuality,
       };
       localStorage.setItem('reclip_site_defaults', JSON.stringify(defs));
+      Logger.info(`Saved site defaults for domain "${domain}":`, defs[domain]);
       showToast(`Saved default settings for ${domain}`);
     } catch (e) {
+      Logger.error('Failed saving site default:', e);
       showToast('Invalid URL for site defaults.');
     }
   }
@@ -360,6 +485,7 @@
       const defs = getSiteDefaults();
       if (defs[domain]) {
         const d = defs[domain];
+        Logger.info(`Found and applied site defaults for "${domain}":`, d);
         if (d.format) state.format = d.format;
         if (d.videoQuality) state.videoQuality = d.videoQuality;
         if (d.audioQuality) state.audioQuality = d.audioQuality;
@@ -375,6 +501,7 @@
       if (!res.ok) return;
       const data = await res.json();
       state.queueStats = { active: data.active_count, queued: data.queued_count };
+      Logger.debug(`Polled queue status: ${data.active_count} active, ${data.queued_count} queued`);
       if (elQueueStatusBar) {
         if (data.active_count > 0 || data.queued_count > 0) {
           elQueueStatusBar.style.display = 'flex';
@@ -386,12 +513,16 @@
           elQueueStatusBar.style.display = 'none';
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      Logger.debug('Queue status poll failed or aborted.');
+    }
   }
 
   function applyPreset(key) {
     const p = PRESETS[key];
     if (!p) return;
+
+    Logger.info(`Applied preset "${key}" (${p.label}): format=${p.format}, videoQuality=${p.videoQuality || 'n/a'}, audioQuality=${p.audioQuality || 'n/a'}`);
 
     document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
     const btn = document.querySelector(`.preset-chip[data-preset="${key}"]`);
@@ -406,6 +537,7 @@
   }
 
   function syncFormatUI() {
+    Logger.debug(`Syncing format UI: format=${state.format}, videoQuality=${state.videoQuality}, audioQuality=${state.audioQuality}`);
     // Sync main format tabs
     document.querySelectorAll('.format-tab-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.format === state.format);
@@ -427,6 +559,14 @@
         b.classList.toggle('active', b.dataset.quality === state.audioQuality);
       });
     }
+
+    // Sync any ready cards that haven't started downloading yet
+    state.cards.forEach((c, idx) => {
+      if (c.status === 'ready') {
+        c.format = state.format;
+        renderCard(idx);
+      }
+    });
   }
 
   // ==========================================
@@ -436,6 +576,7 @@
   async function fetchMetadataForBatch(urls) {
     if (!urls.length) return;
 
+    Logger.info(`[Fetch] Initiating metadata fetch for ${urls.length} URL(s):`, urls);
     elFetchBtn.disabled = true;
     elFetchBtn.innerHTML = '<span class="spin"></span> Fetching...';
 
@@ -444,6 +585,7 @@
     for (const u of urls) {
       if (u.includes('list=')) {
         try {
+          Logger.info(`[Playlist] Detected playlist URL: "${u}". Fetching playlist items...`);
           const res = await fetch('/api/playlist', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -451,17 +593,19 @@
           });
           const pl = await res.json();
           if (pl.urls && pl.urls.length > 0) {
+            Logger.info(`[Playlist] Playlist "${pl.title}" returned ${pl.count} videos. Displaying selection banner.`);
             showPlaylistModal(pl);
             continue;
           }
         } catch (e) {
-          // Fallback to regular single URL
+          Logger.warn(`[Playlist] Playlist resolution failed for "${u}". Falling back to single URL:`, e);
         }
       }
       expandedUrls.push(u);
     }
 
     if (!expandedUrls.length) {
+      Logger.debug('[Fetch] No expanded URLs remaining to process.');
       elFetchBtn.disabled = false;
       elFetchBtn.textContent = 'Fetch Info';
       return;
@@ -491,6 +635,7 @@
         if (!card) break;
 
         try {
+          Logger.debug(`[Fetch] Requesting /api/info for card ${itemIdx}: "${card.url}"`);
           const res = await fetch('/api/info', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -509,13 +654,16 @@
               subtitles: data.subtitles || [],
               selectedFormatId: data.formats?.[0]?.id || 'best',
             });
+            Logger.info(`[Fetch] Metadata received for card ${itemIdx}: "${data.title}" (uploader: "${data.uploader}", duration: ${data.duration}s, formats: ${data.formats?.length || 0})`);
           } else {
             card.status = 'info-error';
             card.error = data.error || 'Failed to retrieve media information.';
+            Logger.error(`[Fetch] Error for card ${itemIdx} ("${card.url}"): ${card.error}`);
           }
         } catch (err) {
           card.status = 'info-error';
           card.error = err.message || 'Network connection failed.';
+          Logger.error(`[Fetch] Network failure for card ${itemIdx} ("${card.url}"):`, err);
         }
         renderCard(itemIdx);
       }
@@ -524,6 +672,7 @@
     const workers = Array.from({ length: Math.min(concurrency, expandedUrls.length) }, () => worker());
     await Promise.all(workers);
 
+    Logger.info(`[Fetch] Batch metadata fetch complete. Processed ${expandedUrls.length} URL(s). Total active cards: ${state.cards.length}`);
     elFetchBtn.disabled = false;
     elFetchBtn.textContent = 'Fetch Info';
     renderDownloadAllBar();
@@ -823,6 +972,7 @@
 
   window.pickCardFormat = (idx, formatId) => {
     if (state.cards[idx]) {
+      Logger.info(`Card ${idx} format changed to: "${formatId}"`);
       state.cards[idx].selectedFormatId = formatId;
       renderCard(idx);
     }
@@ -831,6 +981,7 @@
   window.pickCardSubtitle = (idx, subCode) => {
     const c = state.cards[idx];
     if (!c) return;
+    Logger.info(`Card ${idx} subtitle selection changed to: "${subCode || 'None'}"`);
     c.selectedSub = subCode;
     renderCard(idx);
   };
@@ -838,6 +989,7 @@
   window.toggleSubOnly = (idx, checked) => {
     const c = state.cards[idx];
     if (!c) return;
+    Logger.info(`Card ${idx} subtitle-only toggle set to: ${checked}`);
     c.subOnly = checked;
     renderCard(idx);
   };
@@ -846,6 +998,7 @@
     const c = state.cards[idx];
     if (!c) return;
     c.showChapters = !c.showChapters;
+    Logger.debug(`Card ${idx} chapters dropdown toggled: ${c.showChapters ? 'open' : 'closed'}`);
     renderCard(idx);
   };
 
@@ -855,6 +1008,7 @@
     const ch = c.chapters[chIdx];
     c.selectedChapter = ch;
     c.showChapters = false;
+    Logger.info(`Card ${idx} chapter selected: "${ch.title}" (${ch.start_str} - ${ch.end_str})`);
     showToast(`Selected chapter: ${ch.title}`);
     renderCard(idx);
   };
@@ -869,6 +1023,7 @@
     if (curIdx < 0) return;
 
     const targetIdx = Math.max(0, curIdx + delta);
+    Logger.info(`[Queue] Reordering Job ID ${c.jobId} (card ${idx}): position ${curIdx} -> ${targetIdx}`);
     try {
       const res = await fetch('/api/reorder', {
         method: 'POST',
@@ -878,8 +1033,12 @@
       if (res.ok) {
         showToast(`Job moved ${delta < 0 ? 'up' : 'down'} in queue`);
         updateQueueStatus();
+      } else {
+        Logger.warn(`[Queue] Reorder request rejected for Job ID ${c.jobId}`);
       }
-    } catch (e) {}
+    } catch (e) {
+      Logger.error(`[Queue] Failed to reorder Job ID ${c.jobId}:`, e);
+    }
   };
 
   window.startDownloadJob = async (idx) => {
@@ -899,11 +1058,11 @@
         start_time: c.selectedChapter ? c.selectedChapter.start_str : (document.getElementById('advStartTime')?.value || ''),
         end_time: c.selectedChapter ? c.selectedChapter.end_str : (document.getElementById('advEndTime')?.value || ''),
         sub_lang: c.selectedSub || (document.getElementById('advSubLang')?.value || ''),
-        embed_subs: !isSubOnly && (!!c.selectedSub || (document.getElementById('advEmbedSubs')?.checked || false)),
-        auto_subs: document.getElementById('advAutoSubs')?.checked || false,
-        embed_metadata: document.getElementById('advEmbedMeta')?.checked || true,
-        embed_thumbnail: document.getElementById('advEmbedThumb')?.checked || false,
-        embed_chapters: document.getElementById('advEmbedChapters')?.checked || false,
+        embed_subs: !isSubOnly && (!!c.selectedSub || (document.getElementById('advEmbedSubs') ? document.getElementById('advEmbedSubs').checked : false)),
+        auto_subs: document.getElementById('advAutoSubs') ? document.getElementById('advAutoSubs').checked : false,
+        embed_metadata: document.getElementById('advEmbedMeta') ? document.getElementById('advEmbedMeta').checked : true,
+        embed_thumbnail: document.getElementById('advEmbedThumb') ? document.getElementById('advEmbedThumb').checked : false,
+        embed_chapters: document.getElementById('advEmbedChapters') ? document.getElementById('advEmbedChapters').checked : false,
         filename_strategy: document.getElementById('advFilenameStrategy')?.value || 'title',
         chapter_title: c.selectedChapter ? c.selectedChapter.title : '',
       };
@@ -925,6 +1084,8 @@
         options: opts,
       };
 
+      Logger.info(`[Download] Submitting download job for card ${idx} (URL: "${c.url}", format: "${downloadFormat}", quality: "${payload.video_quality}"):`, payload);
+
       const res = await fetch('/api/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -935,6 +1096,7 @@
       if (!res.ok || data.error) {
         c.status = 'error';
         c.error = data.error || 'Failed to start download.';
+        Logger.error(`[Download] Download submission failed for card ${idx}: ${c.error}`);
         renderCard(idx);
         updateQueueStatus();
         return;
@@ -942,12 +1104,14 @@
 
       c.jobId = data.job_id;
       c.status = data.status || 'queued';
+      Logger.info(`[Download] Job created successfully: Job ID ${data.job_id} (status: ${data.status})`);
       renderCard(idx);
       updateQueueStatus();
       connectJobEvents(idx, data.job_id);
     } catch (err) {
       c.status = 'error';
       c.error = err.message || 'Failed to connect to server.';
+      Logger.error(`[Download] Network error submitting download for card ${idx}:`, err);
       renderCard(idx);
       updateQueueStatus();
     }
@@ -955,17 +1119,20 @@
 
   function connectJobEvents(idx, jobId) {
     if (state.eventSources[jobId]) {
+      Logger.debug(`[SSE] Closing previous EventSource for Job ${jobId}`);
       state.eventSources[jobId].close();
     }
 
     // Primary: Server-Sent Events (SSE)
     if ('EventSource' in window) {
+      Logger.info(`[SSE] Opening EventSource stream for Job ID ${jobId} (/api/events/${jobId})`);
       const es = new EventSource(`/api/events/${jobId}`);
       state.eventSources[jobId] = es;
 
       es.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          Logger.debug(`[SSE] Progress event for Job ${jobId}: status="${data.status}", percent=${data.progress?.percent || 0}%`);
           handleJobUpdate(idx, data);
         } catch (e) {
           // Ignore keep-alive or bad JSON
@@ -973,6 +1140,7 @@
       };
 
       es.onerror = () => {
+        Logger.warn(`[SSE] EventSource stream error or disconnect for Job ${jobId}. Falling back to HTTP polling.`);
         es.close();
         delete state.eventSources[jobId];
         // Graceful fallback to HTTP polling
@@ -980,20 +1148,24 @@
       };
     } else {
       // Fallback directly to polling
+      Logger.info(`[SSE] EventSource not supported in environment. Falling back to HTTP polling for Job ${jobId}.`);
       startPollingFallback(idx, jobId);
     }
   }
 
   function startPollingFallback(idx, jobId) {
     if (state.pollFallbacks[jobId]) return;
+    Logger.info(`[Polling] Initiating HTTP polling fallback for Job ID ${jobId} (interval 1500ms)`);
 
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/status/${jobId}`);
         if (!res.ok) throw new Error('Status poll failed');
         const data = await res.json();
+        Logger.debug(`[Polling] Status update for Job ${jobId}: status="${data.status}", percent=${data.progress?.percent || 0}%`);
         handleJobUpdate(idx, data);
       } catch (err) {
+        Logger.warn(`[Polling] Polling failed or connection lost for Job ${jobId}:`, err);
         clearInterval(iv);
         delete state.pollFallbacks[jobId];
       }
@@ -1003,35 +1175,52 @@
   }
 
   function handleJobUpdate(idx, data) {
-    const c = state.cards[idx];
+    const c = state.cards.find(card => card.jobId === (data.id || (state.cards[idx] && state.cards[idx].jobId))) || state.cards[idx];
     if (!c) return;
+    const cardIdx = state.cards.indexOf(c) >= 0 ? state.cards.indexOf(c) : idx;
 
+    const prevStatus = c.status;
     c.status = data.status;
     c.progress = data.progress || {};
     c.error = data.error;
     c.filename = data.filename;
 
+    if (prevStatus !== data.status) {
+      Logger.info(`[Job] Job ID ${data.id || c.jobId} (card ${cardIdx}) status changed: "${prevStatus}" -> "${data.status}"`);
+    }
+
     if (data.status === 'done') {
-      cleanupJobConnection(data.id);
+      Logger.info(`[Job] Job ID ${data.id || c.jobId} completed successfully! Filename: "${data.filename}"`);
+      cleanupJobConnection(data.id || c.jobId);
       saveToHistory({
         title: c.title || data.filename,
         url: c.url,
-        format: c.format,
+        format: c.format || state.format,
         filename: data.filename,
         date: new Date().toISOString(),
       });
       sendBrowserNotification('ReClip Plus Download Complete', c.title || data.filename);
-      // Automatically prompt save
-      window.saveJobFile(idx);
-    } else if (data.status === 'error' || data.status === 'cancelled') {
-      cleanupJobConnection(data.id);
+      showToast(`Download complete: ${data.filename || 'File ready'}`);
+      // Automatically prompt save after brief deferral for clean connection transition
+      setTimeout(() => {
+        Logger.info(`[Download] Triggering automatic browser save for card ${cardIdx} (file: "${data.filename}")`);
+        window.saveJobFile(cardIdx);
+      }, 100);
+    } else if (data.status === 'error') {
+      Logger.error(`[Job] Job ID ${data.id || c.jobId} encountered failure: ${data.error}`);
+      cleanupJobConnection(data.id || c.jobId);
+    } else if (data.status === 'cancelled') {
+      Logger.warn(`[Job] Job ID ${data.id || c.jobId} was cancelled.`);
+      cleanupJobConnection(data.id || c.jobId);
     }
 
     updateQueueStatus();
-    renderCard(idx);
+    renderCard(cardIdx);
   }
 
   function cleanupJobConnection(jobId) {
+    if (!jobId) return;
+    Logger.debug(`[Cleanup] Closing SSE and polling listeners for Job ID ${jobId}`);
     if (state.eventSources[jobId]) {
       state.eventSources[jobId].close();
       delete state.eventSources[jobId];
@@ -1046,6 +1235,7 @@
     const c = state.cards[idx];
     if (!c || !c.jobId) return;
 
+    Logger.warn(`[Job] User requested cancellation for Job ID ${c.jobId} (card ${idx})`);
     cleanupJobConnection(c.jobId);
     c.status = 'cancelled';
     renderCard(idx);
@@ -1053,8 +1243,9 @@
 
     try {
       await fetch(`/api/cancel/${c.jobId}`, { method: 'POST' });
+      Logger.info(`[Job] Cancellation confirmed for Job ID ${c.jobId}`);
     } catch (e) {
-      // Best effort cancel
+      Logger.warn(`[Job] Cancel request failed for Job ID ${c.jobId}:`, e);
     }
     updateQueueStatus();
   };
@@ -1063,36 +1254,73 @@
     const c = state.cards[idx];
     if (!c || !c.jobId) return;
 
+    Logger.info(`[Job] User requested retry for Job ID ${c.jobId} (card ${idx})`);
     try {
       const res = await fetch(`/api/retry/${c.jobId}`, { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
+        Logger.info(`[Job] Retry accepted for Job ID ${c.jobId}. Re-queued.`);
         c.status = 'queued';
         c.error = null;
         renderCard(idx);
         updateQueueStatus();
         connectJobEvents(idx, c.jobId);
       } else {
+        Logger.error(`[Job] Retry rejected for Job ID ${c.jobId}: ${data.error}`);
         showToast(data.error || 'Cannot retry this job.');
       }
     } catch (err) {
+      Logger.error(`[Job] Network error retrying Job ID ${c.jobId}:`, err);
       showToast('Retry request failed.');
     }
   };
 
   window.saveJobFile = (idx) => {
-    const c = state.cards[idx];
-    if (!c || !c.jobId) return;
+    let c = state.cards[idx];
+    if (!c && typeof idx === 'string') {
+      c = state.cards.find(card => card.jobId === idx);
+    }
+    if (!c || !c.jobId) {
+      Logger.warn(`[Save] saveJobFile invoked with invalid card or missing Job ID (target: ${idx})`);
+      return;
+    }
     const dlName = c.filename || 'download';
+    const downloadUrl = `/api/file/${c.jobId}?name=${encodeURIComponent(dlName)}`;
+    Logger.info(`[Save] Triggering browser file download for card ${idx} (Job ID: ${c.jobId}, File: "${dlName}") via URL: ${downloadUrl}`);
     const a = document.createElement('a');
-    a.href = `/api/file/${c.jobId}?name=${encodeURIComponent(dlName)}`;
-    a.download = dlName;
+    a.style.display = 'none';
+    a.href = downloadUrl;
+    a.setAttribute('download', dlName);
     document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    try {
+      if (typeof a.click === 'function') {
+        a.click();
+      } else {
+        const clickEvent = new MouseEvent('click', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+        });
+        a.dispatchEvent(clickEvent);
+      }
+    } catch (e) {
+      try {
+        a.click();
+      } catch (err) {
+        Logger.error(`[Save] Failed to trigger file download for "${dlName}":`, err);
+      }
+    }
+    setTimeout(() => {
+      if (a.parentNode) {
+        a.parentNode.removeChild(a);
+      }
+    }, 1000);
+    Logger.debug(`[Save] Anchor dispatch completed for "${dlName}"`);
   };
 
   window.downloadAllCards = async () => {
+    const readyCards = state.cards.filter(c => c.status === 'ready');
+    Logger.info(`[Batch] Download All clicked for ${readyCards.length} ready card(s)`);
     const btn = document.getElementById('dlAllBtn');
     if (btn) {
       btn.disabled = true;
@@ -1109,6 +1337,7 @@
       btn.disabled = false;
       btn.textContent = 'All Queued';
     }
+    Logger.info('[Batch] All ready cards queued for download.');
   };
 
   // ==========================================
@@ -1131,9 +1360,10 @@
       list.unshift(item);
       const trimmed = list.slice(0, 50);
       localStorage.setItem('reclip_history', JSON.stringify(trimmed));
+      Logger.debug(`[History] Saved item to local history: "${item.title || item.filename}"`);
       renderHistory();
     } catch (e) {
-      // LocalStorage quota or access issue
+      Logger.warn('[History] LocalStorage quota or access issue while saving history:', e);
     }
   }
 
@@ -1141,8 +1371,11 @@
     try {
       localStorage.removeItem('reclip_history');
       renderHistory();
+      Logger.info('[History] Download history cleared by user.');
       showToast('Download history cleared.');
-    } catch (e) {}
+    } catch (e) {
+      Logger.error('[History] Failed to clear history:', e);
+    }
   }
 
   function renderHistory() {
@@ -1178,6 +1411,7 @@
 
   window.redownloadUrl = (url) => {
     if (!url) return;
+    Logger.info(`[History] Re-download requested for URL: "${url}"`);
     elUrls.value = url;
     updateUrlStats();
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1191,6 +1425,7 @@
   async function copyYtDlpCommand() {
     const urls = parseUrls(elUrls.value).urls;
     const url = urls[0] || 'https://www.youtube.com/watch?v=...';
+    Logger.info(`[CLI] Generating yt-dlp CLI command for URL: "${url}"`);
 
     const payload = {
       url,
@@ -1202,11 +1437,11 @@
         start_time: document.getElementById('advStartTime')?.value || '',
         end_time: document.getElementById('advEndTime')?.value || '',
         sub_lang: document.getElementById('advSubLang')?.value || '',
-        embed_subs: document.getElementById('advEmbedSubs')?.checked || false,
-        auto_subs: document.getElementById('advAutoSubs')?.checked || false,
-        embed_metadata: document.getElementById('advEmbedMeta')?.checked || true,
-        embed_thumbnail: document.getElementById('advEmbedThumb')?.checked || false,
-        embed_chapters: document.getElementById('advEmbedChapters')?.checked || false,
+        embed_subs: document.getElementById('advEmbedSubs') ? document.getElementById('advEmbedSubs').checked : false,
+        auto_subs: document.getElementById('advAutoSubs') ? document.getElementById('advAutoSubs').checked : false,
+        embed_metadata: document.getElementById('advEmbedMeta') ? document.getElementById('advEmbedMeta').checked : true,
+        embed_thumbnail: document.getElementById('advEmbedThumb') ? document.getElementById('advEmbedThumb').checked : false,
+        embed_chapters: document.getElementById('advEmbedChapters') ? document.getElementById('advEmbedChapters').checked : false,
         filename_strategy: document.getElementById('advFilenameStrategy')?.value || 'title',
       },
     };
@@ -1220,9 +1455,13 @@
       const data = await res.json();
       if (data.command) {
         await navigator.clipboard.writeText(data.command);
+        Logger.info(`[CLI] Copied command to clipboard: "${data.command}"`);
         showToast('yt-dlp command copied to clipboard!');
+      } else {
+        Logger.warn('[CLI] Backend did not return a command:', data);
       }
     } catch (e) {
+      Logger.error('[CLI] Failed to generate or copy yt-dlp command:', e);
       showToast('Could not copy command.');
     }
   }
@@ -1232,11 +1471,13 @@
   // ==========================================
 
   function init() {
+    Logger.info('Initializing ReClip Plus frontend application...');
     initTheme();
     renderHistory();
     renderCustomPresets();
     updateQueueStatus();
     setInterval(updateQueueStatus, 4000);
+    Logger.info('ReClip Plus initialized successfully and ready for media URLs.');
 
     // Input events
     elUrls.addEventListener('input', () => {
@@ -1251,7 +1492,10 @@
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         const { urls } = parseUrls(elUrls.value);
-        if (urls.length) fetchMetadataForBatch(urls);
+        if (urls.length) {
+          Logger.info(`[Input] Enter pressed. Fetching metadata for ${urls.length} URL(s).`);
+          fetchMetadataForBatch(urls);
+        }
       }
     });
 
@@ -1262,6 +1506,7 @@
     // Format pills
     document.querySelectorAll('.format-tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        Logger.info(`[Controls] Format mode selected: "${btn.dataset.format}"`);
         state.format = btn.dataset.format;
         syncFormatUI();
       });
@@ -1270,6 +1515,7 @@
     // Strategy buttons
     document.querySelectorAll('#videoStrategyRow .strat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        Logger.info(`[Controls] Video quality strategy selected: "${btn.dataset.quality}"`);
         state.videoQuality = btn.dataset.quality;
         syncFormatUI();
       });
@@ -1277,6 +1523,7 @@
 
     document.querySelectorAll('#audioStrategyRow .strat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
+        Logger.info(`[Controls] Audio quality selected: "${btn.dataset.quality}"`);
         state.audioQuality = btn.dataset.quality;
         syncFormatUI();
       });
@@ -1300,8 +1547,10 @@
       elFetchBtn.addEventListener('click', () => {
         const { urls } = parseUrls(elUrls.value);
         if (urls.length) {
+          Logger.info(`[Fetch] Fetch Info clicked with ${urls.length} URL(s).`);
           fetchMetadataForBatch(urls);
         } else {
+          Logger.warn('[Fetch] Fetch Info clicked with empty or invalid URL input.');
           showToast('Please enter at least one valid media URL.');
         }
       });
@@ -1309,6 +1558,9 @@
 
     if (elClearBtn) {
       elClearBtn.addEventListener('click', () => {
+        Logger.info('[Controls] Clear button clicked. Resetting inputs and cards.');
+        Object.keys(state.eventSources).forEach(jobId => cleanupJobConnection(jobId));
+        Object.keys(state.pollFallbacks).forEach(jobId => cleanupJobConnection(jobId));
         elUrls.value = '';
         updateUrlStats();
         state.cards = [];
@@ -1323,6 +1575,7 @@
       elAdvToggle.addEventListener('click', () => {
         const isOpen = elAdvPanel.classList.toggle('open');
         elAdvToggle.classList.toggle('open', isOpen);
+        Logger.debug(`[Controls] Advanced options accordion toggled: ${isOpen ? 'open' : 'closed'}`);
       });
     }
 
@@ -1331,6 +1584,11 @@
 
     const elClearHistory = document.getElementById('clearHistoryBtn');
     if (elClearHistory) elClearHistory.addEventListener('click', clearHistory);
+
+    window.addEventListener('beforeunload', () => {
+      Object.keys(state.eventSources).forEach(jobId => cleanupJobConnection(jobId));
+      Object.keys(state.pollFallbacks).forEach(jobId => cleanupJobConnection(jobId));
+    });
   }
 
   // Run on DOM ready
