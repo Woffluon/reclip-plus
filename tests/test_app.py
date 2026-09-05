@@ -176,6 +176,38 @@ class TestAppRoutes:
             cd = res.headers.get("Content-Disposition", "")
             assert "KAR%C5%9EINDA" in cd or "KARSINDA" in cd
 
+    def test_file_download_in_progress_returns_409(self, client, tmp_path):
+        from reclip.jobs import Job, job_manager
+
+        job_id = "1122334455"
+        # Even if a partial file exists on disk, in-progress job must return 409 and not leak partial stream
+        test_file = tmp_path / f"{job_id}.mp4"
+        test_file.write_bytes(b"partial video data")
+
+        job = Job(job_id=job_id, url="https://example.com/test", title="Active Job")
+        job.status = "downloading"
+        job_manager.jobs[job_id] = job
+
+        with patch("reclip.app.DOWNLOAD_DIR", str(tmp_path)):
+            res = client.get(f"/api/file/{job_id}")
+            assert res.status_code == 409
+            data = res.get_json()
+            assert "not ready" in data.get("error", "").lower()
+
+    def test_file_download_failed_job_returns_404(self, client):
+        from reclip.jobs import Job, job_manager
+
+        job_id = "5544332211"
+        job = Job(job_id=job_id, url="https://example.com/test", title="Failed Job")
+        job.status = "error"
+        job.error = "Connection reset by peer"
+        job_manager.jobs[job_id] = job
+
+        res = client.get(f"/api/file/{job_id}")
+        assert res.status_code == 404
+        data = res.get_json()
+        assert "failed" in data.get("error", "").lower()
+
     @patch("reclip.jobs.is_safe_url", return_value=(True, ""))
     @patch("reclip.jobs.check_disk_space", return_value=(True, ""))
     @patch.object(job_manager, "_process_queue")

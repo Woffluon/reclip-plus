@@ -413,7 +413,18 @@ def download_file(job_id: str):
     real_file_path: str | None = None
     download_name: str | None = None
 
-    if job and job.status == "done" and job.file_path:
+    if job:
+        if job.status != "done":
+            if job.status == "error":
+                return jsonify({"error": f"Job failed: {job.error or 'Download failed'}"}), 404
+            elif job.status == "cancelled":
+                return jsonify({"error": "Job was cancelled."}), 404
+            else:
+                return jsonify({"error": "File is not ready yet."}), 409
+
+        if not job.file_path or not os.path.isfile(job.file_path):
+            return jsonify({"error": "File not found on server disk."}), 404
+
         real_file_path = os.path.normcase(os.path.realpath(job.file_path))
         download_name = job.filename
     else:
@@ -442,7 +453,7 @@ def download_file(job_id: str):
 
     # Support client-supplied filename override (?name=...) with sanitization
     client_name = request.args.get("name", "").strip()
-    if client_name:
+    if client_name and client_name.lower() not in ("download", "download.mp4", "media", "media.mp4"):
         ext = os.path.splitext(real_file_path)[1]
         download_name = sanitize_filename(
             client_name if client_name.endswith(ext) else f"{client_name}{ext}"
